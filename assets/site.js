@@ -268,7 +268,6 @@
     { g: "Go", label: "Contact", run: () => goto("#contact") },
     { g: "Go", label: "Top of page", run: () => goto("#top") },
     { g: "Open", label: "Artex", run: out("https://fast-artex.vercel.app") },
-    { g: "Open", label: "Solace Discord", run: out("https://discord.gg/X3KPAnFdCd") },
     { g: "Open", label: "IsraelGPT", run: out("https://stelies.github.io/israelgpt/") },
     { g: "Open", label: "GitHub", run: out("https://github.com/stelies") },
     { g: "Do", label: "Copy link to this page", keep: true, run: copyLink },
