@@ -76,11 +76,11 @@
   countEls.forEach((el) => { el.textContent = "0" + (el.dataset.suffix || ""); });
   function countUp(el) {
     const to = parseFloat(el.dataset.count), suf = el.dataset.suffix || "";
-    if (reduce) { el.textContent = to + suf; return; }
+    if (reduce) { el.textContent = to.toLocaleString("en-US") + suf; return; }
     const t0 = performance.now(), dur = 1400;
     const step = (now) => {
       const t = Math.min((now - t0) / dur, 1);
-      el.textContent = Math.round(to * (1 - Math.pow(1 - t, 3))) + suf;
+      el.textContent = Math.round(to * (1 - Math.pow(1 - t, 3))).toLocaleString("en-US") + suf;
       if (t < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -218,20 +218,29 @@
 
   addEventListener("resize", () => { fit(); progress(); });
 
-  /* ——— work list: the project's plate floats beside the cursor ——— */
+  /* ——— work list: the project's images float beside the cursor, one at a time, at their own proportions ——— */
   const peek = $("#peek");
   const rowEls = $$("#rows .row[data-peek]");
   if (peek && rowEls.length && matchMedia("(hover: hover)").matches) {
-    const imgs = new Map();
-    rowEls.forEach((row) => {
-      const src = row.dataset.peek;
-      if (imgs.has(src)) return;
-      const im = document.createElement("img");
-      im.src = src; im.alt = ""; im.decoding = "async";
-      peek.append(im);
-      imgs.set(src, im);
-    });
+    const pim = document.createElement("img");
+    pim.alt = ""; pim.decoding = "async";
+    const pcap = document.createElement("span");
+    pcap.className = "cap mono";
+    peek.append(pim, pcap);
+    const loaded = new Set();
+    let list = [], dims = [], idx = 0, timer = 0;
     let px = 0, py = 0, tx = 0, ty = 0, running = false, shown = false;
+    const width = (d) => Math.round(d[0] > d[1] ? Math.min(460, innerWidth * 0.3) : Math.min(300, innerWidth * 0.2));
+    const set = (i) => {
+      idx = i;
+      pim.src = list[i];
+      peek.style.width = width(dims[i]) + "px";
+      pcap.innerHTML = "<b>" + String(i + 1).padStart(2, "0") + "</b>" + String(list.length).padStart(2, "0");
+    };
+    const next = () => {
+      pim.classList.add("swap");
+      setTimeout(() => { set((idx + 1) % list.length); pim.classList.remove("swap"); }, 140);
+    };
     const place = () => {
       const w = peek.offsetWidth, h = peek.offsetHeight;
       tx = clamp(tx, 12, innerWidth - w - 12);
@@ -245,13 +254,18 @@
     const move = (e) => { tx = e.clientX + 36; ty = e.clientY - peek.offsetHeight / 2; place(); if (!shown) { px = tx; py = ty; shown = true; } };
     rowEls.forEach((row) => {
       row.addEventListener("mouseenter", (e) => {
-        imgs.forEach((im, src) => im.classList.toggle("on", src === row.dataset.peek));
+        list = row.dataset.peek.split("|");
+        dims = (row.dataset.w || "").split("|").map((d) => d.split(",").map(Number));
+        list.forEach((src, i) => { if (!dims[i] || !dims[i][1]) dims[i] = [1, 1]; if (!loaded.has(src)) { loaded.add(src); new Image().src = src; } });
+        set(0);
         move(e);
         peek.classList.add("show");
+        clearInterval(timer);
+        if (list.length > 1) timer = setInterval(next, 1300);
         if (!running) { running = true; requestAnimationFrame(loop); }
       });
       row.addEventListener("mousemove", move);
-      row.addEventListener("mouseleave", () => { peek.classList.remove("show"); running = false; shown = false; });
+      row.addEventListener("mouseleave", () => { peek.classList.remove("show"); clearInterval(timer); running = false; shown = false; });
     });
   }
 
@@ -265,11 +279,15 @@
   const commands = [
     { g: "Go", label: "Work", run: () => goto("#work") },
     { g: "Go", label: "About", run: () => goto("#about") },
+    { g: "Go", label: "Artex studio", run: () => goto("#artex") },
     { g: "Go", label: "Contact", run: () => goto("#contact") },
     { g: "Go", label: "Top of page", run: () => goto("#top") },
     { g: "Open", label: "Artex", run: out("https://fast-artex.vercel.app") },
     { g: "Open", label: "IsraelGPT", run: out("https://stelies.github.io/israelgpt/") },
+    { g: "Open", label: "Instagram", run: out("https://instagram.com/hhquz") },
+    { g: "Open", label: "Artex WhatsApp", run: out("https://wa.me/963982461374") },
     { g: "Open", label: "GitHub", run: out("https://github.com/stelies") },
+    { g: "Do", label: "Copy Discord username", keep: true, run: () => copyText("stelies", "Discord username copied") },
     { g: "Do", label: "Copy link to this page", keep: true, run: copyLink },
   ];
 
@@ -335,6 +353,17 @@
     if (!c.keep) close();
     c.run();
   }
+  function copyText(txt, msg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => say(msg), () => say("Copy failed"));
+    else say("Copy failed");
+  }
+  $$("[data-copy]").forEach((btn) => btn.addEventListener("click", () => {
+    const hint = btn.querySelector("i"), was = hint.textContent;
+    const done = (ok) => { hint.textContent = ok ? "Copied" : "Copy failed"; setTimeout(() => { hint.textContent = was; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(btn.dataset.copy).then(() => done(true), () => done(false));
+    else done(false);
+  }));
+
   function copyLink() {
     const url = location.href.split("#")[0];
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => say("Link copied"), () => say("Copy failed"));
