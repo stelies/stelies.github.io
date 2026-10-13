@@ -221,7 +221,7 @@
   /* ——— reels: scroll position picks the picture on the pinned stage ——— */
   const reels = $$("[data-reel]").map((el) => {
     const shots = $$(".shot", el), ticks = $$(".reel-ticks li", el);
-    return { el, shots, ticks, side: $(".reel-side", el), no: $("[data-no]", el), title: $("[data-title]", el), note: $("[data-note]", el), stage: $(".reel-stage", el), idx: -1 };
+    return { el, shots, ticks, side: $(".reel-side", el), no: $("[data-no]", el), title: $(".reel-title", el), note: $(".reel-note", el), stage: $(".reel-stage", el), idx: -1 };
   });
   function setShot(r, i) {
     if (i === r.idx) return;
@@ -230,7 +230,6 @@
     const f = r.shots[i];
     r.shots.forEach((s, k) => s.classList.toggle("on", k === i));
     r.ticks.forEach((t, k) => t.classList.toggle("on", k === i));
-    r.stage.style.setProperty("--glow", f.dataset.glow || "rgba(0,0,0,0)");
     const apply = () => { r.no.textContent = String(i + 1).padStart(2, "0"); r.title.textContent = f.dataset.title; r.note.textContent = f.dataset.note; r.side.classList.remove("swap"); };
     if (first || reduce) { apply(); return; }
     r.side.classList.add("swap");
