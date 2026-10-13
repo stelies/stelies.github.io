@@ -73,19 +73,20 @@
 
   /* ——— reveal on scroll ——— */
   const countEls = $$("[data-count]");
-  countEls.forEach((el) => { el.textContent = "0" + (el.dataset.suffix || ""); });
+  const fmtN = (v, dec) => v.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  countEls.forEach((el) => { el.textContent = (el.dataset.prefix || "") + fmtN(0, +el.dataset.dec || 0) + (el.dataset.suffix || ""); });
   function countUp(el) {
-    const to = parseFloat(el.dataset.count), suf = el.dataset.suffix || "";
-    if (reduce) { el.textContent = to.toLocaleString("en-US") + suf; return; }
-    const t0 = performance.now(), dur = 1400;
+    const to = parseFloat(el.dataset.count), suf = el.dataset.suffix || "", pre = el.dataset.prefix || "", dec = +el.dataset.dec || 0;
+    if (reduce) { el.textContent = pre + fmtN(to, dec) + suf; return; }
+    const t0 = performance.now(), dur = 1600;
     const step = (now) => {
       const t = Math.min((now - t0) / dur, 1);
-      el.textContent = Math.round(to * (1 - Math.pow(1 - t, 3))).toLocaleString("en-US") + suf;
+      el.textContent = pre + fmtN(to * (1 - Math.pow(1 - t, 3)), dec) + suf;
       if (t < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
   }
-  const reveal = $$(".rv, .letters, .words, [data-count]");
+  const reveal = $$(".rv, .bl, .letters, .words, [data-count]").filter((el) => !el.closest(".curtain"));
   const reveal1 = (el) => { el.classList.add("on"); if (el.hasAttribute("data-count")) countUp(el); };
   if ("IntersectionObserver" in window) {
     const io = new IntersectionObserver(
@@ -218,41 +219,40 @@
 
   addEventListener("resize", () => { fit(); progress(); });
 
-  /* ——— reels: scroll position picks the picture on the pinned stage ——— */
-  const reels = $$("[data-reel]").map((el) => {
-    const shots = $$(".shot", el), ticks = $$(".reel-ticks li", el);
-    return { el, shots, ticks, side: $(".reel-side", el), no: $("[data-no]", el), title: $(".reel-title", el), note: $(".reel-note", el), stage: $(".reel-stage", el), idx: -1 };
-  });
-  function setShot(r, i) {
-    if (i === r.idx) return;
-    const first = r.idx < 0;
-    r.idx = i;
-    const f = r.shots[i];
-    r.shots.forEach((s, k) => s.classList.toggle("on", k === i));
-    r.ticks.forEach((t, k) => t.classList.toggle("on", k === i));
-    const apply = () => { r.no.textContent = String(i + 1).padStart(2, "0"); r.title.textContent = f.dataset.title; r.note.textContent = f.dataset.note; r.side.classList.remove("swap"); };
-    if (first || reduce) { apply(); return; }
-    r.side.classList.add("swap");
-    clearTimeout(r.t);
-    r.t = setTimeout(apply, 180);
+  /* ——— studio moment: the picture is fixed behind the page and only shows through the hole ———
+     enter 0→1 while layer A lifts off it, leave 0→1 while layer B slides up over it. The picture opens
+     through slats on the way in, then dims and drifts as it is covered. */
+  const hole = $("[data-curtain]");
+  const curtain = hole && $(".curtain", hole);
+  const cImg = curtain && $(".curtain-img", curtain);
+  const cIn = curtain && $(".curtain-in", curtain);
+  let cStarted = false;
+  const ease = (t) => 1 - Math.pow(1 - t, 2.2);
+  function curtainFx() {
+    if (!hole) return;
+    const r = hole.getBoundingClientRect(), vh = innerHeight;
+    const live = r.bottom > 0 && r.top < vh;
+    curtain.style.visibility = live ? "visible" : "hidden";
+    if (!live) return;
+    const enter = clamp((vh - r.top) / vh, 0, 1);
+    const leave = clamp((vh - r.bottom) / vh, 0, 1);
+    if (!cStarted && enter > 0.5) {
+      cStarted = true;
+      curtain.classList.add("on");
+      $$("[data-count]", curtain).forEach(countUp);
+    }
+    if (reduce) { cImg.style.setProperty("--b", "8px"); return; }
+    const open = ease(clamp(enter * 1.3, 0, 1));
+    cImg.style.setProperty("--b", (open * 8).toFixed(2) + "px");
+    cImg.style.filter = "brightness(" + (1 - leave * 0.65).toFixed(3) + ")";
+    cImg.style.transform = "scale(" + (1.04 + (1 - open) * 0.07 + leave * 0.05).toFixed(4) + ")";
+    cIn.style.opacity = clamp(1 - leave * 1.5, 0, 1).toFixed(3);
+    cIn.style.transform = "translate3d(0," + (-leave * 70).toFixed(1) + "px,0)";
   }
-  let reelRaf = 0;
-  function updateReels() {
-    reelRaf = 0;
-    reels.forEach((r) => {
-      const rect = r.el.getBoundingClientRect();
-      if (rect.bottom < -innerHeight || rect.top > innerHeight * 2) return;
-      const usable = Math.max(1, r.el.offsetHeight - innerHeight * 1.55);
-      const p = clamp(-rect.top / usable, 0, 0.9999);
-      setShot(r, Math.floor(p * r.shots.length));
-    });
-  }
-  const queueReels = () => { if (!reelRaf) reelRaf = requestAnimationFrame(updateReels); };
-  if (reels.length) {
-    document.documentElement.classList.add("has-reels");
-    addEventListener("scroll", queueReels, { passive: true });
-    addEventListener("resize", queueReels);
-    updateReels();
+  if (hole) {
+    addEventListener("scroll", curtainFx, { passive: true });
+    addEventListener("resize", curtainFx);
+    curtainFx();
   }
 
   /* ——— command palette ——— */
