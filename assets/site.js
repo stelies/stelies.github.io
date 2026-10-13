@@ -255,6 +255,18 @@
     curtainFx();
   }
 
+  /* ——— animation clips: the block stays hidden until at least one clip actually loads ——— */
+  const anim = $("#anim");
+  if (anim) {
+    const clips = $$("video[data-vid]", anim);
+    clips.forEach((v) => {
+      v.addEventListener("loadeddata", () => { anim.hidden = false; }, { once: true });
+      if (reduce) { v.removeAttribute("autoplay"); v.pause(); }
+    });
+    // a clip that fails to load removes its own plate
+    clips.forEach((v) => v.addEventListener("error", () => { const f = v.closest("figure"); if (f) f.remove(); }));
+  }
+
   /* ——— command palette ——— */
   const pal = $("#pal");
   if (!pal) return;
@@ -267,11 +279,12 @@
     { g: "Go", label: "About", run: () => goto("#about") },
     { g: "Go", label: "Artex studio", run: () => goto("#artex") },
     { g: "Go", label: "IsraelGPT", run: () => goto("#israelgpt") },
+    { g: "Go", label: "Roblox game", run: () => goto("#game") },
     { g: "Go", label: "Design", run: () => goto("#design") },
     { g: "Go", label: "Contact", run: () => goto("#contact") },
     { g: "Go", label: "Top of page", run: () => goto("#top") },
     { g: "Open", label: "Artex", run: out("https://fast-artex.vercel.app") },
-    { g: "Open", label: "IsraelGPT", run: out("https://stelies.github.io/israelgpt/") },
+    { g: "Open", label: "IsraelGPT (coming soon)", run: out("https://stelies.github.io/israelgpt/") },
     { g: "Open", label: "Instagram", run: out("https://instagram.com/hhquz") },
     { g: "Open", label: "Artex WhatsApp", run: out("https://wa.me/963982461374") },
     { g: "Open", label: "GitHub", run: out("https://github.com/stelies") },
