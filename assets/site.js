@@ -228,6 +228,8 @@
     pcap.className = "cap mono";
     peek.append(pim, pcap);
     const loaded = new Set();
+    const warm = () => rowEls.forEach((row) => row.dataset.peek.split("|").forEach((src) => { if (!loaded.has(src)) { loaded.add(src); const im = new Image(); im.decoding = "async"; im.src = src; } }));
+    if ("requestIdleCallback" in window) requestIdleCallback(warm, { timeout: 2500 }); else setTimeout(warm, 1200);
     let list = [], dims = [], idx = 0, timer = 0;
     let px = 0, py = 0, tx = 0, ty = 0, running = false, shown = false;
     const width = (d) => Math.round(d[0] > d[1] ? Math.min(460, innerWidth * 0.3) : Math.min(300, innerWidth * 0.2));

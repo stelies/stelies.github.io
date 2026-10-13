@@ -357,3 +357,8 @@ ul, ol { list-style: none; }
   .chan { grid-template-columns: 1fr; }
   .chan-i { min-height: 0; }
 }
+
+.spec-4 { grid-template-columns: repeat(4, 1fr); }
+.spec-4 dd small { display: block; margin: 8px 0 0; }
+@media (max-width: 1100px) { .spec-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 900px) { .spec-4 { grid-template-columns: 1fr; } }
