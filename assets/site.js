@@ -218,57 +218,42 @@
 
   addEventListener("resize", () => { fit(); progress(); });
 
-  /* ——— work list: the project's images float beside the cursor, one at a time, at their own proportions ——— */
-  const peek = $("#peek");
-  const rowEls = $$("#rows .row[data-peek]");
-  if (peek && rowEls.length && matchMedia("(hover: hover)").matches) {
-    const pim = document.createElement("img");
-    pim.alt = ""; pim.decoding = "async";
-    const pcap = document.createElement("span");
-    pcap.className = "cap mono";
-    peek.append(pim, pcap);
-    const loaded = new Set();
-    const warm = () => rowEls.forEach((row) => row.dataset.peek.split("|").forEach((src) => { if (!loaded.has(src)) { loaded.add(src); const im = new Image(); im.decoding = "async"; im.src = src; } }));
-    if ("requestIdleCallback" in window) requestIdleCallback(warm, { timeout: 2500 }); else setTimeout(warm, 1200);
-    let list = [], dims = [], idx = 0, timer = 0;
-    let px = 0, py = 0, tx = 0, ty = 0, running = false, shown = false;
-    const width = (d) => Math.round(d[0] > d[1] ? Math.min(460, innerWidth * 0.3) : Math.min(300, innerWidth * 0.2));
-    const set = (i) => {
-      idx = i;
-      pim.src = list[i];
-      peek.style.width = width(dims[i]) + "px";
-      pcap.innerHTML = "<b>" + String(i + 1).padStart(2, "0") + "</b>" + String(list.length).padStart(2, "0");
-    };
-    const next = () => {
-      pim.classList.add("swap");
-      setTimeout(() => { set((idx + 1) % list.length); pim.classList.remove("swap"); }, 140);
-    };
-    const place = () => {
-      const w = peek.offsetWidth, h = peek.offsetHeight;
-      tx = clamp(tx, 12, innerWidth - w - 12);
-      ty = clamp(ty, 12, innerHeight - h - 12);
-    };
-    const loop = () => {
-      px += (tx - px) * 0.16; py += (ty - py) * 0.16;
-      peek.style.transform = "translate3d(" + px.toFixed(1) + "px," + py.toFixed(1) + "px,0)";
-      if (running) requestAnimationFrame(loop);
-    };
-    const move = (e) => { tx = e.clientX + 36; ty = e.clientY - peek.offsetHeight / 2; place(); if (!shown) { px = tx; py = ty; shown = true; } };
-    rowEls.forEach((row) => {
-      row.addEventListener("mouseenter", (e) => {
-        list = row.dataset.peek.split("|");
-        dims = (row.dataset.w || "").split("|").map((d) => d.split(",").map(Number));
-        list.forEach((src, i) => { if (!dims[i] || !dims[i][1]) dims[i] = [1, 1]; if (!loaded.has(src)) { loaded.add(src); new Image().src = src; } });
-        set(0);
-        move(e);
-        peek.classList.add("show");
-        clearInterval(timer);
-        if (list.length > 1) timer = setInterval(next, 1300);
-        if (!running) { running = true; requestAnimationFrame(loop); }
-      });
-      row.addEventListener("mousemove", move);
-      row.addEventListener("mouseleave", () => { peek.classList.remove("show"); clearInterval(timer); running = false; shown = false; });
+  /* ——— reels: scroll position picks the picture on the pinned stage ——— */
+  const reels = $$("[data-reel]").map((el) => {
+    const shots = $$(".shot", el), ticks = $$(".reel-ticks li", el);
+    return { el, shots, ticks, side: $(".reel-side", el), no: $("[data-no]", el), title: $("[data-title]", el), note: $("[data-note]", el), stage: $(".reel-stage", el), idx: -1 };
+  });
+  function setShot(r, i) {
+    if (i === r.idx) return;
+    const first = r.idx < 0;
+    r.idx = i;
+    const f = r.shots[i];
+    r.shots.forEach((s, k) => s.classList.toggle("on", k === i));
+    r.ticks.forEach((t, k) => t.classList.toggle("on", k === i));
+    r.stage.style.setProperty("--glow", f.dataset.glow || "rgba(0,0,0,0)");
+    const apply = () => { r.no.textContent = String(i + 1).padStart(2, "0"); r.title.textContent = f.dataset.title; r.note.textContent = f.dataset.note; r.side.classList.remove("swap"); };
+    if (first || reduce) { apply(); return; }
+    r.side.classList.add("swap");
+    clearTimeout(r.t);
+    r.t = setTimeout(apply, 180);
+  }
+  let reelRaf = 0;
+  function updateReels() {
+    reelRaf = 0;
+    reels.forEach((r) => {
+      const rect = r.el.getBoundingClientRect();
+      if (rect.bottom < -innerHeight || rect.top > innerHeight * 2) return;
+      const usable = Math.max(1, r.el.offsetHeight - innerHeight * 1.55);
+      const p = clamp(-rect.top / usable, 0, 0.9999);
+      setShot(r, Math.floor(p * r.shots.length));
     });
+  }
+  const queueReels = () => { if (!reelRaf) reelRaf = requestAnimationFrame(updateReels); };
+  if (reels.length) {
+    document.documentElement.classList.add("has-reels");
+    addEventListener("scroll", queueReels, { passive: true });
+    addEventListener("resize", queueReels);
+    updateReels();
   }
 
   /* ——— command palette ——— */
@@ -282,6 +267,8 @@
     { g: "Go", label: "Work", run: () => goto("#work") },
     { g: "Go", label: "About", run: () => goto("#about") },
     { g: "Go", label: "Artex studio", run: () => goto("#artex") },
+    { g: "Go", label: "IsraelGPT", run: () => goto("#israelgpt") },
+    { g: "Go", label: "Design", run: () => goto("#design") },
     { g: "Go", label: "Contact", run: () => goto("#contact") },
     { g: "Go", label: "Top of page", run: () => goto("#top") },
     { g: "Open", label: "Artex", run: out("https://fast-artex.vercel.app") },
